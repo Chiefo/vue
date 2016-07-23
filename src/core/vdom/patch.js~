@@ -357,9 +357,6 @@ export function createPatchFunction (backend) {
     }
     if (isDef(tag)) {
       if (isDef(children)) {
-        if (children.length && !elm) {
-          return false
-        }
         const childNodes = nodeOps.childNodes(elm)
         for (let i = 0; i < children.length; i++) {
           const success = hydrate(childNodes[i], children[i], insertedVnodeQueue)
