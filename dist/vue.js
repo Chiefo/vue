@@ -3458,6 +3458,9 @@ var nodeOps = Object.freeze({
       }
       if (isDef(tag)) {
         if (isDef(children)) {
+          if (children.length && !elm) {
+            return false;
+          }
           var childNodes = nodeOps.childNodes(elm);
           for (var _i3 = 0; _i3 < children.length; _i3++) {
             var success = hydrate(childNodes[_i3], children[_i3], insertedVnodeQueue);
