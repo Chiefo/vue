@@ -16,7 +16,9 @@ export function createBundleRendererCreator (createRenderer) {
       },
       renderToStream: (context, hook) => {
         const res = new PassThrough()
-        runInVm(code, context).then(app => {
+        runInVm(code, context).then(module => {
+          return module.exports ? module.exports(context) : module
+        }).then(app => {
           return (hook && hook(app)) || app
         }).then(app => {
           renderer.renderToStream(app).pipe(res)

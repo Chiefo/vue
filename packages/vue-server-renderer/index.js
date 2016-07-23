@@ -4707,7 +4707,9 @@ function createBundleRendererCreator(createRenderer) {
       },
       renderToStream: function renderToStream(context, hook) {
         var res = new stream.PassThrough();
-        runInVm(code, context).then(function (app) {
+        runInVm(code, context).then(function (module) {
+          return module.exports ? module.exports(context) : module;
+        }).then(function (app) {
           return hook && hook(app) || app;
         }).then(function (app) {
           renderer.renderToStream(app).pipe(res);
