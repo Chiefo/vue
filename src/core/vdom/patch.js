@@ -24,6 +24,9 @@ function isDef (s) {
 }
 
 function sameVnode (vnode1, vnode2) {
+  if (vnode1.isStatic || vnode2.isStatic) {
+    return vnode1 === vnode2
+  }
   return (
     vnode1.key === vnode2.key &&
     vnode1.tag === vnode2.tag &&
@@ -259,8 +262,12 @@ export function createPatchFunction (backend) {
         newStartVnode = newCh[++newStartIdx]
       } else {
         if (isUndef(oldKeyToIdx)) oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx)
-        idxInOld = oldKeyToIdx[newStartVnode.key]
-        if (isUndef(idxInOld)) { // New element
+        idxInOld = isDef(newStartVnode.key)
+          ? oldKeyToIdx[newStartVnode.key]
+          : newStartVnode.isStatic
+            ? oldCh.indexOf(newStartVnode)
+            : null
+        if (isUndef(idxInOld) || idxInOld === -1) { // New element
           nodeOps.insertBefore(parentElm, createElm(newStartVnode, insertedVnodeQueue), oldStartVnode.elm)
           newStartVnode = newCh[++newStartIdx]
         } else {
@@ -376,20 +383,24 @@ export function createPatchFunction (backend) {
   }
 
   function assertNodeMatch (node, vnode) {
-    if (vnode.tag) {
-      if (vnode.tag.indexOf('vue-component') === 0) {
-        return true
-      } else {
-        const childNodes = nodeOps.childNodes(node)
-        return vnode.tag === nodeOps.tagName(node).toLowerCase() && (
-          vnode.children
-            ? vnode.children.length === childNodes.length
-            : childNodes.length === 0
-        )
-      }
+    let match = true
+    if (!node) {
+      match = false
+    } else if (vnode.tag) {
+      match =
+        vnode.tag.indexOf('vue-component') === 0 ||
+        vnode.tag === nodeOps.tagName(node).toLowerCase()
     } else {
-      return _toString(vnode.text) === node.data
+      match = _toString(vnode.text) === node.data
     }
+    if (process.env.NODE_ENV !== 'production' && !match) {
+      warn(
+        'The client-side rendered virtual DOM tree is not matching ' +
+        'server-rendered content. Bailing hydration and performing ' +
+        'full client-side render.'
+      )
+    }
+    return match
   }
 
   return function patch (oldVnode, vnode, hydrating, removeOnly) {
@@ -418,12 +429,6 @@ export function createPatchFunction (backend) {
             if (hydrate(oldVnode, vnode, insertedVnodeQueue)) {
               invokeInsertHook(vnode, insertedVnodeQueue, true)
               return oldVnode
-            } else if (process.env.NODE_ENV !== 'production') {
-              warn(
-                'The client-side rendered virtual DOM tree is not matching ' +
-                'server-rendered content. Bailing hydration and performing ' +
-                'full client-side render.'
-              )
             }
           }
           // either not server-rendered, or hydration failed.

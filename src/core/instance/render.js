@@ -56,9 +56,7 @@ export function renderMixin (Vue: Class<Component>) {
     vm.$vnode = _parentVnode
     // resolve slots. becaues slots are rendered in parent scope,
     // we set the activeInstance to parent.
-    if (_renderChildren) {
-      resolveSlots(vm, _renderChildren)
-    }
+    vm.$slots = resolveSlots(_renderChildren)
     // render self
     let vnode
     try {
@@ -105,13 +103,16 @@ export function renderMixin (Vue: Class<Component>) {
   // number conversion
   Vue.prototype._n = toNumber
 
-  //
+  // render static tree by index
   Vue.prototype._m = function renderStatic (index?: number): Object | void {
-    return this._staticTrees[index] || (
-      this._staticTrees[index] = this.$options.staticRenderFns[index].call(
+    let tree = this._staticTrees[index]
+    if (!tree) {
+      tree = this._staticTrees[index] = this.$options.staticRenderFns[index].call(
         this._renderProxy
       )
-    )
+      tree.isStatic = true
+    }
+    return tree
   }
 
   // filter resolution helper
@@ -148,7 +149,10 @@ export function renderMixin (Vue: Class<Component>) {
   }
 
   // apply v-bind object
-  Vue.prototype._b = function bindProps (vnode: VNodeWithData, value: any) {
+  Vue.prototype._b = function bindProps (
+    vnode: VNodeWithData,
+    value: any,
+    asProp?: boolean) {
     if (value) {
       if (!isObject(value)) {
         process.env.NODE_ENV !== 'production' && warn(
@@ -161,8 +165,8 @@ export function renderMixin (Vue: Class<Component>) {
         }
         const data = vnode.data
         for (const key in value) {
-          const hash = config.mustUseProp(key)
-            ? data.props || (data.props = {})
+          const hash = asProp || config.mustUseProp(key)
+            ? data.domProps || (data.domProps = {})
             : data.attrs || (data.attrs = {})
           hash[key] = value[key]
         }
@@ -176,11 +180,11 @@ export function renderMixin (Vue: Class<Component>) {
   }
 }
 
-function resolveSlots (
-  vm: Component,
-  renderChildren: Array<any> | () => Array<any> | string
-) {
-  const slots = vm.$slots = {}
+export function resolveSlots (renderChildren: any): Object {
+  const slots = {}
+  if (!renderChildren) {
+    return slots
+  }
   const children = normalizeChildren(renderChildren) || []
   const defaultSlot = []
   let name, child
@@ -205,4 +209,5 @@ function resolveSlots (
   )) {
     slots.default = defaultSlot
   }
+  return slots
 }

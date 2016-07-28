@@ -4,7 +4,7 @@
 // supports transition mode (out-in / in-out)
 
 import { warn } from 'core/util/index'
-import { camelize } from 'shared/util'
+import { camelize, extend } from 'shared/util'
 import { getRealChild, mergeVNodeHook } from 'core/vdom/helpers'
 
 export const transitionProps = {
@@ -12,6 +12,7 @@ export const transitionProps = {
   appear: Boolean,
   css: Boolean,
   mode: String,
+  type: String,
   enterClass: String,
   leaveClass: String,
   enterActiveClass: String,
@@ -39,7 +40,7 @@ export function extractTransitionData (comp: Component): Object {
 export default {
   name: 'transition',
   props: transitionProps,
-  _abstract: true,
+  abstract: true,
   render (h: Function) {
     let children = this.$slots.default
     if (!children) {
@@ -100,9 +101,12 @@ export default {
     const oldRawChild = this._vnode
     const oldChild: any = getRealChild(oldRawChild)
 
-    // handle transition mode
-    if (mode && oldChild && oldChild.data && oldChild.key !== child.key) {
-      const oldData = oldChild.data.transition
+    if (oldChild && oldChild.data && oldChild.key !== child.key) {
+      // replace old child transition data with fresh one
+      // important for dynamic transitions!
+      const oldData = oldChild.data.transition = extend({}, data)
+
+      // handle transition mode
       if (mode === 'out-in') {
         // return empty node and queue update when leave finishes
         mergeVNodeHook(oldData, 'afterLeave', () => {
